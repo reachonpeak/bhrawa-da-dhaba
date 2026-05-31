@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bharawan Daa Dhaba — Website
 
-## Getting Started
+Pure-vegetarian Punjabi dhaba in Seven Hills, NSW. Next.js 16 + Tailwind v4 + Framer Motion + Stripe + Resend.
 
-First, run the development server:
+## Run locally
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in keys when ready
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Site runs at http://localhost:3000. Checkout will show a friendly "not configured" message until you add `STRIPE_SECRET_KEY`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+  app/                 # routes (Home, Menu, About, Catering, Contact, Checkout, Order)
+    api/
+      checkout/        # POST → creates Stripe Checkout session
+      webhooks/stripe/ # webhook → sends Resend confirmation emails
+      catering/        # POST → sends enquiry email
+  components/          # UI (Hero, MenuTabs, CartDrawer, …)
+  lib/
+    menu.ts            # ★ FULL MENU — edit prices and items here
+    business.ts        # Address, phone, email, hours
+    cart.ts            # Zustand cart store (persisted to localStorage)
+    utils.ts           # cn(), formatAUD()
+```
 
-## Learn More
+## Editing the menu
 
-To learn more about Next.js, take a look at the following resources:
+Open `src/lib/menu.ts`. Each category has an `items` array. Edit/add/remove items as needed — prices update everywhere automatically.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Enabling online ordering (Stripe)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Sign up at https://stripe.com (use your Australia business details).
+2. Get your secret key from the API keys page in the Stripe Dashboard.
+3. Add `STRIPE_SECRET_KEY` to `.env.local` (and in Vercel later).
+4. For order confirmation emails, set up the webhook:
+   - In Stripe Dashboard → Developers → Webhooks → Add endpoint
+   - URL: `https://your-domain.vercel.app/api/webhooks/stripe`
+   - Event: `checkout.session.completed`
+   - Copy signing secret → `STRIPE_WEBHOOK_SECRET`
 
-## Deploy on Vercel
+## Enabling confirmation emails (Resend)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Sign up at https://resend.com.
+2. Get an API key → `RESEND_API_KEY`.
+3. Verify your domain in Resend (optional for testing). Without a verified domain, emails use `resend.dev` and may go to spam.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Adding images
+
+See `IMAGE_PROMPTS.md` for ready-to-paste prompts for Midjourney / DALL·E / Flux. Save outputs into `public/images/`.
+
+## Deploy to Vercel
+
+```bash
+npx vercel
+```
+
+Or push to GitHub and connect on https://vercel.com. Add the env vars in the Vercel project settings.
+
+## Owner
+
+Honey Khaneja · 23 Boomerang Place, Seven Hills NSW 2147 · 0478 073 373 · bharawandaadhaba@gmail.com
