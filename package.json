@@ -20,6 +20,8 @@
     "react-dom": "19.2.4",
     "react-parallax-tilt": "^1.7.329",
     "resend": "^6.12.4",
+    "server-only": "^0.0.1",
+    "square": "^44.1.0",
     "stripe": "^22.2.0",
     "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.14"

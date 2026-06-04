@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { findItem } from "@/lib/menu";
+import { findItemAsync } from "@/lib/menu-store";
 
 export const runtime = "nodejs";
 
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
         ? l.id.replace(/-(1|2) pc$/, "")
         : l.id
       : l.id;
-    const canonical = findItem(baseId);
+    const canonical = await findItemAsync(baseId);
     if (!canonical) {
       return NextResponse.json({ error: `Unknown item: ${l.id}` }, { status: 400 });
     }

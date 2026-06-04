@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { menu } from "@/lib/menu";
+import { getMenu } from "@/lib/menu-store";
 import { MenuTabs } from "@/components/MenuTabs";
 import { PhulkariDivider } from "@/components/PhulkariDivider";
 
@@ -9,7 +9,10 @@ export const metadata: Metadata = {
     "Explore the full Bharawan Daa Dhaba menu — Punjabi dhaba specials, South Indian, Bombay street food, sabzi, dals, tandoori breads and thalis.",
 };
 
-export default function MenuPage() {
+export const dynamic = "force-dynamic";
+
+export default async function MenuPage() {
+  const menu = await getMenu();
   return (
     <div className="relative">
       <section className="bg-gradient-to-b from-brand-cream to-brand-cream-soft py-14 text-center">

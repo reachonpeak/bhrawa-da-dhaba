@@ -1,5 +1,6 @@
 import { business } from "@/lib/business";
 import { Phone, Mail, MapPin } from "lucide-react";
+import { OpenStatus } from "@/components/OpenStatus";
 
 export function VisitSection() {
   return (
@@ -43,7 +44,10 @@ export function VisitSection() {
           </ul>
 
           <div className="ornate-card mt-6 p-5">
-            <h3 className="font-display text-lg text-brand-red">Hours</h3>
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-display text-lg text-brand-red">Hours</h3>
+              <OpenStatus />
+            </div>
             <ul className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-brand-ink/80">
               {business.hours.map((h) => (
                 <li key={h.day} className="flex justify-between">

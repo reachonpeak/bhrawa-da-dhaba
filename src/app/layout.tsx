@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CartDrawer } from "@/components/CartDrawer";
+import { StickyOrderCTA } from "@/components/StickyOrderCTA";
 import { StructuredData } from "@/components/StructuredData";
 import { business } from "@/lib/business";
 
@@ -62,6 +63,7 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <Footer />
         <CartDrawer />
+        <StickyOrderCTA />
       </body>
     </html>
   );
