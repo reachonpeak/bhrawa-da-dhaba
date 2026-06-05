@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin";
 import { deleteItem, reorderItem, updateItem } from "@/lib/menu-store";
+import { isSafeImageUrl } from "@/lib/utils";
 import type { Tag } from "@/lib/menu";
 
 export const runtime = "nodejs";
@@ -28,8 +29,8 @@ export async function PATCH(
       await reorderItem(slug, id, body.move);
     }
     const patch: Record<string, unknown> = {};
-    if (body.name !== undefined) patch.name = body.name.trim();
-    if (body.description !== undefined) patch.description = body.description.trim() || undefined;
+    if (body.name !== undefined) patch.name = body.name.trim().slice(0, 120);
+    if (body.description !== undefined) patch.description = body.description.trim().slice(0, 500) || undefined;
     if (body.price !== undefined) {
       const p = Number(body.price);
       if (!Number.isFinite(p) || p < 0) return NextResponse.json({ error: "Bad price" }, { status: 400 });
@@ -46,7 +47,13 @@ export async function PATCH(
       const tags = (body.tags ?? []).filter((t): t is Tag => ALLOWED_TAGS.includes(t as Tag));
       patch.tags = tags.length ? tags : undefined;
     }
-    if (body.image !== undefined) patch.image = body.image.trim() || undefined;
+    if (body.image !== undefined) {
+      const image = body.image.trim() || undefined;
+      if (image && !isSafeImageUrl(image)) {
+        return NextResponse.json({ error: "Image must be an http(s) URL or a site path" }, { status: 400 });
+      }
+      patch.image = image;
+    }
     if (body.outOfStock !== undefined) patch.outOfStock = !!body.outOfStock;
     if (Object.keys(patch).length) {
       await updateItem(slug, id, patch);

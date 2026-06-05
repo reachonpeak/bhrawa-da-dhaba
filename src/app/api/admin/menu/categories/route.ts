@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
   try {
     const created = await createCategory({
       slug,
-      title: body.title.trim(),
-      subtitle: body.subtitle?.trim() || undefined,
+      title: body.title.trim().slice(0, 80),
+      subtitle: body.subtitle?.trim().slice(0, 160) || undefined,
     });
     return NextResponse.json(created);
   } catch (err) {

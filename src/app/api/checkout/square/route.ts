@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SquareClient, SquareEnvironment } from "square";
 import { randomUUID } from "crypto";
 import { findItemAsync } from "@/lib/menu-store";
+import { getSiteUrl } from "@/lib/url";
 
 export const runtime = "nodejs";
 
@@ -98,7 +99,8 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const origin = req.headers.get("origin") ?? req.nextUrl.origin;
+  // Trusted, server-configured base URL (not the client Origin header).
+  const origin = getSiteUrl();
 
   const metadata: Record<string, string> = {
     mode: isDelivery ? "delivery" : "pickup",

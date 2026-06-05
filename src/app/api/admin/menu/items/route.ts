@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin";
 import { createItem, slugify } from "@/lib/menu-store";
+import { isSafeImageUrl } from "@/lib/utils";
 import type { MenuItem, Tag } from "@/lib/menu";
 
 export const runtime = "nodejs";
@@ -26,6 +27,10 @@ export async function POST(req: NextRequest) {
   if (!Number.isFinite(price) || price < 0) {
     return NextResponse.json({ error: "Price must be a non-negative number" }, { status: 400 });
   }
+  const image = body.image?.trim() || undefined;
+  if (image && !isSafeImageUrl(image)) {
+    return NextResponse.json({ error: "Image must be an http(s) URL or a site path" }, { status: 400 });
+  }
   const variants = body.variants
     ?.filter((v) => v?.label && v.price !== "" && v.price != null)
     .map((v) => ({ label: String(v.label).slice(0, 40), price: Number(v.price) }))
@@ -34,12 +39,12 @@ export async function POST(req: NextRequest) {
   const id = (body.id?.trim() || slugify(body.name)).toLowerCase();
   const item: MenuItem = {
     id,
-    name: body.name.trim(),
-    description: body.description?.trim() || undefined,
+    name: body.name.trim().slice(0, 120),
+    description: body.description?.trim().slice(0, 500) || undefined,
     price,
     variants: variants && variants.length ? variants : undefined,
     tags: tags.length ? tags : undefined,
-    image: body.image?.trim() || undefined,
+    image,
     outOfStock: !!body.outOfStock,
   };
   try {

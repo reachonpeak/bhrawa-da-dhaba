@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { Resend } from "resend";
 import { business } from "@/lib/business";
+import { escapeHtml } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
@@ -22,7 +23,8 @@ export async function POST(req: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(raw, sig!, webhookSecret);
   } catch (err) {
-    return NextResponse.json({ error: `Bad signature: ${String(err)}` }, { status: 400 });
+    console.error("Stripe webhook signature verification failed", err);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   if (event.type === "checkout.session.completed") {
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
     const total = ((session.amount_total ?? 0) / 100).toFixed(2);
 
     const itemRows = lineItems.data
-      .map((li) => `<tr><td>${li.description ?? ""}</td><td style="text-align:center">${li.quantity}</td><td style="text-align:right">A$${((li.amount_total ?? 0) / 100).toFixed(2)}</td></tr>`)
+      .map((li) => `<tr><td>${escapeHtml(li.description ?? "")}</td><td style="text-align:center">${li.quantity}</td><td style="text-align:right">A$${((li.amount_total ?? 0) / 100).toFixed(2)}</td></tr>`)
       .join("");
 
     const html = `
@@ -48,13 +50,13 @@ export async function POST(req: NextRequest) {
         </div>
         <div style="background:#FFF8E7;padding:24px;border:1px solid #E0A82E33;border-top:none">
           <h2 style="color:#C8102E">Order confirmed — thank you!</h2>
-          <p>Hi ${customerName || "there"}, your order is in. We'll have it ready for pickup at <strong>${pickupTime}</strong>.</p>
+          <p>Hi ${escapeHtml(customerName) || "there"}, your order is in. We'll have it ready for pickup at <strong>${escapeHtml(pickupTime)}</strong>.</p>
           <table style="width:100%;border-collapse:collapse;margin-top:16px">
             <thead><tr style="border-bottom:1px solid #E0A82E"><th align="left">Item</th><th>Qty</th><th align="right">Total</th></tr></thead>
             <tbody>${itemRows}</tbody>
             <tfoot><tr><td colspan="2" align="right" style="padding-top:12px"><strong>Total</strong></td><td align="right" style="padding-top:12px"><strong>A$${total}</strong></td></tr></tfoot>
           </table>
-          ${notes ? `<p style="margin-top:16px"><strong>Notes:</strong> ${notes}</p>` : ""}
+          ${notes ? `<p style="margin-top:16px"><strong>Notes:</strong> ${escapeHtml(notes)}</p>` : ""}
           <hr style="border:none;border-top:1px dashed #E0A82E;margin:20px 0">
           <p style="font-size:14px"><strong>Pickup address</strong><br>${business.address.full}</p>
           <p style="font-size:14px"><strong>Phone</strong>: ${business.phone.display}</p>
@@ -74,7 +76,7 @@ export async function POST(req: NextRequest) {
           from,
           to: recipients,
           subject: `New order — A$${total} · ${customerName || "Guest"}`,
-          html: html + `<div style="padding:16px 24px;background:#FBEFD0;font-size:12px"><strong>Customer:</strong> ${customerName} · ${customerPhone} · ${customerEmail}</div>`,
+          html: html + `<div style="padding:16px 24px;background:#FBEFD0;font-size:12px"><strong>Customer:</strong> ${escapeHtml(customerName)} · ${escapeHtml(customerPhone)} · ${escapeHtml(customerEmail)}</div>`,
         });
       } catch (err) {
         console.error("Resend email failed", err);

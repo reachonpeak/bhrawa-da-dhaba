@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { findItemAsync } from "@/lib/menu-store";
+import { getSiteUrl } from "@/lib/url";
 
 export const runtime = "nodejs";
 
@@ -56,7 +57,9 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const origin = req.headers.get("origin") ?? req.nextUrl.origin;
+  // Use a trusted, server-configured base URL — never the client-controlled
+  // Origin header — to avoid open-redirect / phishing via the success page.
+  const origin = getSiteUrl();
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

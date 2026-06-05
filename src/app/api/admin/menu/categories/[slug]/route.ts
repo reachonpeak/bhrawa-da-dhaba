@@ -17,7 +17,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ slug: str
       await reorderCategory(slug, body.move);
     }
     if (body.title !== undefined || body.subtitle !== undefined) {
-      await updateCategory(slug, { title: body.title, subtitle: body.subtitle });
+      await updateCategory(slug, {
+        title: body.title?.slice(0, 80),
+        subtitle: body.subtitle?.slice(0, 160),
+      });
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
