@@ -30,22 +30,24 @@ export async function POST(req: NextRequest) {
   // Validate prices against server-side menu to prevent tampering
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   for (const l of body.lines) {
-    const baseId = l.id.split("-")[0]
-      ? l.id.includes("-1 pc") || l.id.includes("-2 pc")
-        ? l.id.replace(/-(1|2) pc$/, "")
-        : l.id
+    const baseId = l.id.includes("-1 pc") || l.id.includes("-2 pc")
+      ? l.id.replace(/-(1|2) pc$/, "")
       : l.id;
     const canonical = await findItemAsync(baseId);
     if (!canonical) {
       return NextResponse.json({ error: `Unknown item: ${l.id}` }, { status: 400 });
+    }
+    if (canonical.outOfStock) {
+      return NextResponse.json({ error: `${canonical.name} is out of stock` }, { status: 400 });
     }
     let unit = canonical.price;
     if (canonical.variants && l.variant) {
       const v = canonical.variants.find((x) => x.label === l.variant);
       if (v) unit = v.price;
     }
+    const qty = Math.max(1, Math.min(20, Math.floor(Number(l.qty)) || 1));
     line_items.push({
-      quantity: Math.max(1, Math.min(20, l.qty)),
+      quantity: qty,
       price_data: {
         currency: "aud",
         unit_amount: Math.round(unit * 100),

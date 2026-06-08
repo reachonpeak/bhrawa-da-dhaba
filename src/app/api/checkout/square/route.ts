@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       const v = canonical.variants.find((x) => x.label === l.variant);
       if (v) unit = v.price;
     }
-    const qty = Math.max(1, Math.min(20, l.qty));
+    const qty = Math.max(1, Math.min(20, Math.floor(Number(l.qty)) || 1));
     lineItems.push({
       name: l.variant ? `${canonical.name} (${l.variant})` : canonical.name,
       quantity: String(qty),
