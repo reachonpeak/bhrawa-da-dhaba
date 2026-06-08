@@ -1,6 +1,7 @@
 import "server-only";
 import { cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 /**
  * Firebase Admin SDK singleton. Mirrors the factory pattern in
@@ -26,4 +27,18 @@ function getAdminApp(): App | null {
 export function getAdminAuth(): Auth | null {
   const app = getAdminApp();
   return app ? getAuth(app) : null;
+}
+
+let firestoreSingleton: Firestore | null = null;
+
+export function getAdminFirestore(): Firestore | null {
+  const app = getAdminApp();
+  if (!app) return null;
+  if (firestoreSingleton) return firestoreSingleton;
+  const db = getFirestore(app);
+  // ignoreUndefinedProperties lets us store partial menu items without having
+  // to strip undefined fields (e.g. optional description/image/tags).
+  db.settings({ ignoreUndefinedProperties: true });
+  firestoreSingleton = db;
+  return db;
 }

@@ -1,32 +1,72 @@
 import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
+import { getAdminFirestore } from "./firebase-admin";
 import { menu as seedMenu, type MenuCategory, type MenuItem } from "./menu";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const FILE = path.join(DATA_DIR, "menu.json");
 
-async function ensureSeed(): Promise<MenuCategory[]> {
+// Where the menu lives in Firestore: collection "site", document "menu",
+// with the whole category array under the `categories` field. The full menu is
+// small (~25 KB) — well under Firestore's 1 MB document limit — so storing it
+// as one document keeps the CRUD logic identical to the old JSON-file model
+// (read whole array, mutate, write whole array) and reads are atomic.
+const MENU_COLLECTION = "site";
+const MENU_DOC = "menu";
+
+function cloneSeed(): MenuCategory[] {
+  return JSON.parse(JSON.stringify(seedMenu)) as MenuCategory[];
+}
+
+// --- Filesystem fallback (local dev only, when Firebase isn't configured) ---
+
+async function readFromFile(): Promise<MenuCategory[]> {
   try {
     const raw = await fs.readFile(FILE, "utf8");
     return JSON.parse(raw) as MenuCategory[];
   } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(FILE, JSON.stringify(seedMenu, null, 2), "utf8");
-    return JSON.parse(JSON.stringify(seedMenu));
+    try {
+      await fs.mkdir(DATA_DIR, { recursive: true });
+      await fs.writeFile(FILE, JSON.stringify(seedMenu, null, 2), "utf8");
+    } catch {
+      // read-only filesystem — fall back to the in-memory seed
+    }
+    return cloneSeed();
   }
 }
 
-async function saveMenu(data: MenuCategory[]): Promise<void> {
+async function writeToFile(data: MenuCategory[]): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true });
   const tmp = FILE + ".tmp";
   await fs.writeFile(tmp, JSON.stringify(data, null, 2), "utf8");
   await fs.rename(tmp, FILE);
 }
 
-export async function getMenu(): Promise<MenuCategory[]> {
-  return ensureSeed();
+// --- Firestore-backed store (production / whenever Firebase is configured) ---
+
+async function getMenu(): Promise<MenuCategory[]> {
+  const db = getAdminFirestore();
+  if (!db) return readFromFile();
+
+  const ref = db.collection(MENU_COLLECTION).doc(MENU_DOC);
+  const snap = await ref.get();
+  const data = snap.exists ? (snap.data()?.categories as MenuCategory[] | undefined) : undefined;
+  if (Array.isArray(data)) return data;
+
+  // First run: seed Firestore with the built-in menu so it can be edited.
+  const seed = cloneSeed();
+  await ref.set({ categories: seed });
+  return seed;
 }
+
+async function saveMenu(data: MenuCategory[]): Promise<void> {
+  const db = getAdminFirestore();
+  if (!db) return writeToFile(data);
+  await db.collection(MENU_COLLECTION).doc(MENU_DOC).set({ categories: data });
+}
+
+export { getMenu };
 
 export async function findItemAsync(id: string): Promise<MenuItem | undefined> {
   const m = await getMenu();
