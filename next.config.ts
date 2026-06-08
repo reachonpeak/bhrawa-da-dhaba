@@ -4,9 +4,22 @@ import type { NextConfig } from "next";
 // NOTE: script-src uses 'unsafe-inline' because Next.js injects inline bootstrap
 // scripts and the auth/payment popups need inline execution. Tighten to a
 // nonce-based policy later if desired.
+//
+// 'unsafe-eval' is allowed ONLY in development — Next.js dev (HMR + eval source
+// maps) requires it. The production bundle contains no eval()/new Function(), so
+// we omit it in prod for a stronger policy.
+const isDev = process.env.NODE_ENV !== "production";
+const scriptSrc = [
+  "script-src 'self' 'unsafe-inline'",
+  isDev ? "'unsafe-eval'" : "",
+  "https://apis.google.com https://www.gstatic.com https://js.stripe.com https://*.squarecdn.com https://sandbox.web.squarecdn.com",
+]
+  .filter(Boolean)
+  .join(" ");
+
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://js.stripe.com https://*.squarecdn.com https://sandbox.web.squarecdn.com",
+  scriptSrc,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",

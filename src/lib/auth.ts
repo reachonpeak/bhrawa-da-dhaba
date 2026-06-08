@@ -29,6 +29,21 @@ export function isEmailAllowed(email?: string | null): boolean {
 }
 
 /**
+ * Whether a decoded Firebase token represents a sufficiently-trusted identity.
+ *
+ * We require a verified email for OAuth providers (e.g. Google). For the
+ * email/password provider we accept the account as long as its email is on the
+ * allowlist: the admin provisions these accounts manually, and because the
+ * allowlisted email already exists it cannot be hijacked via Firebase's public
+ * self-signup API (the address is taken). The allowlist remains the gate.
+ */
+function isTrustedIdentity(decoded: { email?: string; email_verified?: boolean; firebase?: { sign_in_provider?: string } }): boolean {
+  if (!isEmailAllowed(decoded.email)) return false;
+  if (decoded.email_verified === true) return true;
+  return decoded.firebase?.sign_in_provider === "password";
+}
+
+/**
  * Authoritative server-side admin check. Verifies the Firebase session cookie
  * (with revocation check) AND re-checks the email allowlist on every request, so
  * removing an email or revoking tokens locks out existing sessions immediately.
@@ -43,7 +58,7 @@ export async function isAdminAuthenticated(): Promise<boolean> {
   if (!cookie) return false;
   try {
     const decoded = await auth.verifySessionCookie(cookie, true /* checkRevoked */);
-    return isEmailAllowed(decoded.email) && decoded.email_verified === true;
+    return isTrustedIdentity(decoded);
   } catch {
     return false;
   }
@@ -66,7 +81,7 @@ export async function createAdminSession(idToken: unknown): Promise<SessionResul
   }
   try {
     const decoded = await auth.verifyIdToken(idToken, true /* checkRevoked */);
-    if (!isEmailAllowed(decoded.email) || decoded.email_verified !== true) {
+    if (!isTrustedIdentity(decoded)) {
       return { ok: false, status: 403, error: "Not authorized" };
     }
     const sessionCookie = await auth.createSessionCookie(idToken, {
