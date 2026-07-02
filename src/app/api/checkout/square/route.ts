@@ -130,12 +130,12 @@ export async function POST(req: NextRequest) {
 
   const metadata: Record<string, string> = {
     mode: isDelivery ? "delivery" : "pickup",
-    customerName: (cust.name ?? "").slice(0, 255),
-    pickupTime: (cust.pickupTime ?? "").slice(0, 255),
-    notes: (cust.notes ?? "").slice(0, 255),
   };
+  if (cust.name) metadata.customerName = cust.name.slice(0, 255);
+  if (cust.pickupTime) metadata.pickupTime = cust.pickupTime.slice(0, 255);
+  if (cust.notes) metadata.notes = cust.notes.slice(0, 255);
   if (isDelivery && cust.address) {
-    metadata.deliveryAddress = [
+    const addr = [
       cust.address.line1,
       cust.address.line2,
       `${cust.address.suburb} ${cust.address.state} ${cust.address.postcode}`,
@@ -144,6 +144,7 @@ export async function POST(req: NextRequest) {
       .filter(Boolean)
       .join(", ")
       .slice(0, 255);
+    if (addr) metadata.deliveryAddress = addr;
   }
 
   try {
