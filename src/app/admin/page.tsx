@@ -4,6 +4,7 @@ import { isAdminAuthenticated } from "@/lib/admin";
 import { fetchRecentOrders } from "@/lib/square-orders";
 import { getMenu } from "@/lib/menu-store";
 import { formatAUD } from "@/lib/utils";
+import { getEnquiries } from "@/lib/enquiry-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +12,11 @@ export const dynamic = "force-dynamic";
 export default async function AdminDashboard() {
   if (!(await isAdminAuthenticated())) redirect("/admin/login");
 
-  const [{ orders, error }, menu] = await Promise.all([fetchRecentOrders(100), getMenu()]);
+  const [{ orders, error }, menu, enquiries] = await Promise.all([
+    fetchRecentOrders(100),
+    getMenu(),
+    getEnquiries().catch(() => []),
+  ]);
 
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -53,14 +58,15 @@ export default async function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Orders today" value={String(todayOrders.length)} sub={`${todayOrders.filter((o) => o.state === "COMPLETED").length} completed`} />
         <Stat label="Revenue today" value={formatAUD(todayRevenue)} sub="GST incl." />
         <Stat label="Last 7 days" value={formatAUD(weekRevenue)} sub={`${weekOrders.length} orders`} />
         <Stat label="Menu items" value={String(totalItems)} sub={outOfStock ? `${outOfStock} out of stock` : "All in stock"} />
+        <Stat label="Enquiries" value={String(enquiries.length)} sub="Catering & contact" />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         <div className="ornate-card p-6">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-display text-xl text-brand-ink">Top dishes · 7 days</h2>
@@ -113,6 +119,41 @@ export default async function AdminDashboard() {
                     <div className="font-semibold">{formatAUD(o.total)}</div>
                     <div className="text-[10px] uppercase tracking-wider text-brand-ink/50">{o.state ?? "—"}</div>
                   </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="ornate-card p-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-xl text-brand-ink">Latest enquiries</h2>
+            <Link href="/admin/enquiries" className="text-xs font-semibold uppercase tracking-wider text-brand-red hover:underline">
+              View all →
+            </Link>
+          </div>
+          {enquiries.length === 0 ? (
+            <p className="text-sm text-brand-ink/60">No enquiries yet.</p>
+          ) : (
+            <ul className="divide-y divide-brand-gold/20 text-sm">
+              {enquiries.slice(0, 6).map((e) => (
+                <li key={e.id || e.createdAt} className="flex flex-col gap-1 py-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-brand-ink truncate max-w-[120px]">
+                      {e.name || "—"}
+                    </span>
+                    <span className="text-[10px] text-brand-ink/50">
+                      {e.createdAt ? new Date(e.createdAt).toLocaleDateString("en-AU", { timeZone: "Australia/Melbourne" }) : ""}
+                    </span>
+                  </div>
+                  <div className="text-xs text-brand-ink/60 truncate">
+                    {e.eventType ? `${e.eventType} · ` : ""}{e.guests ? `${e.guests} guests` : ""}
+                  </div>
+                  {e.message && (
+                    <div className="text-[11px] text-brand-ink/70 italic truncate">
+                      “{e.message}”
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

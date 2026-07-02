@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { isAdminAuthenticated } from "@/lib/admin";
 import { LogoutButton } from "./LogoutButton";
+import { getEnquiries } from "@/lib/enquiry-store";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +16,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     return <div className="min-h-screen bg-brand-cream-soft">{children}</div>;
   }
 
+  const enquiries = await getEnquiries().catch(() => []);
+  const count = enquiries.length;
+
   const links = [
     { href: "/admin", label: "Dashboard", icon: "📊" },
     { href: "/admin/orders", label: "Orders", icon: "📦" },
     { href: "/admin/menu", label: "Menu", icon: "🍽️" },
-    { href: "/admin/enquiries", label: "Enquiries", icon: "✉️" },
+    { href: "/admin/enquiries", label: `Enquiries ${count ? `(${count})` : ""}`, icon: "✉️" },
   ];
 
   return (

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
 import { business } from "@/lib/business";
 import { escapeHtml, isValidEmail } from "@/lib/utils";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { saveEnquiry } from "@/lib/enquiry-store";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 
 export const runtime = "nodejs";
 
@@ -46,36 +46,44 @@ export async function POST(req: NextRequest) {
     console.error("Failed to save catering enquiry to database:", dbErr);
   }
 
-  const resendKey = process.env.RESEND_API_KEY;
-  if (!resendKey) {
-    console.log("Catering enquiry received (Resend not configured).");
-    return NextResponse.json({ ok: true, queued: false });
+  // Enqueue email in Firestore for Trigger Email extension (free, no Resend costs)
+  const db = getAdminFirestore();
+  const htmlPayload = `
+    <div style="font-family:system-ui,sans-serif;max-width:560px">
+      <h2 style="color:#C8102E">New catering enquiry</h2>
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td><strong>Name</strong></td><td>${escapeHtml(name)}</td></tr>
+        <tr><td><strong>Phone</strong></td><td>${escapeHtml(phone)}</td></tr>
+        <tr><td><strong>Email</strong></td><td>${escapeHtml(email)}</td></tr>
+        <tr><td><strong>Event date</strong></td><td>${escapeHtml(eventDate || "—")}</td></tr>
+        <tr><td><strong>Guests</strong></td><td>${escapeHtml(guests || "—")}</td></tr>
+        <tr><td><strong>Event type</strong></td><td>${escapeHtml(eventType || "—")}</td></tr>
+      </table>
+      <h3 style="margin-top:16px">Message</h3>
+      <p style="white-space:pre-wrap">${escapeHtml(message || "(none)")}</p>
+    </div>
+  `;
+
+  if (db) {
+    try {
+      await db.collection("mail").add({
+        to: [business.email],
+        replyTo: email,
+        message: {
+          subject: `Catering enquiry — ${name} (${guests || "?"} guests)`,
+          html: htmlPayload,
+        },
+      });
+    } catch (mailErr) {
+      console.error("Failed to enqueue email in Firestore:", mailErr);
+    }
+  } else {
+    console.log("Catering email enqueued (Firebase not configured):", {
+      to: [business.email],
+      replyTo: email,
+      subject: `Catering enquiry — ${name} (${guests || "?"} guests)`,
+    });
   }
-
-  const resend = new Resend(resendKey);
-  const from = `${business.name} <catering@${process.env.RESEND_DOMAIN ?? "resend.dev"}>`;
-
-  await resend.emails.send({
-    from,
-    to: [business.email],
-    replyTo: email, // validated above (CRLF-rejected) — safe as a header value
-    subject: `Catering enquiry — ${name} (${guests || "?"} guests)`,
-    html: `
-      <div style="font-family:system-ui,sans-serif;max-width:560px">
-        <h2 style="color:#C8102E">New catering enquiry</h2>
-        <table style="width:100%;border-collapse:collapse">
-          <tr><td><strong>Name</strong></td><td>${escapeHtml(name)}</td></tr>
-          <tr><td><strong>Phone</strong></td><td>${escapeHtml(phone)}</td></tr>
-          <tr><td><strong>Email</strong></td><td>${escapeHtml(email)}</td></tr>
-          <tr><td><strong>Event date</strong></td><td>${escapeHtml(eventDate || "—")}</td></tr>
-          <tr><td><strong>Guests</strong></td><td>${escapeHtml(guests || "—")}</td></tr>
-          <tr><td><strong>Event type</strong></td><td>${escapeHtml(eventType || "—")}</td></tr>
-        </table>
-        <h3 style="margin-top:16px">Message</h3>
-        <p style="white-space:pre-wrap">${escapeHtml(message || "(none)")}</p>
-      </div>
-    `,
-  });
 
   return NextResponse.json({ ok: true });
 }
