@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { business } from "@/lib/business";
 import { escapeHtml, isValidEmail } from "@/lib/utils";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { saveEnquiry } from "@/lib/enquiry-store";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,21 @@ export async function POST(req: NextRequest) {
   }
   if (!isValidEmail(email)) {
     return NextResponse.json({ error: "Please enter a valid email address" }, { status: 400 });
+  }
+
+  // Save to database first so it is never lost
+  try {
+    await saveEnquiry({
+      name,
+      email,
+      phone,
+      eventDate,
+      guests,
+      eventType,
+      message,
+    });
+  } catch (dbErr) {
+    console.error("Failed to save catering enquiry to database:", dbErr);
   }
 
   const resendKey = process.env.RESEND_API_KEY;
