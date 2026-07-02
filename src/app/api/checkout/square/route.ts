@@ -39,6 +39,32 @@ async function resolveLocationId(client: SquareClient): Promise<string> {
   return loc.id;
 }
 
+function formatE164(phone?: string): string | undefined {
+  if (!phone) return undefined;
+  
+  // Remove all characters except digits and '+'
+  let cleaned = phone.replace(/[^\d+]/g, "");
+
+  // If it already starts with '+', return it
+  if (cleaned.startsWith("+")) {
+    return cleaned;
+  }
+
+  // If it starts with '0', remove the leading '0' and prepend '+61' (Australia)
+  if (cleaned.startsWith("0")) {
+    cleaned = cleaned.substring(1);
+    return `+61${cleaned}`;
+  }
+
+  // If it starts with '61' (already has country code but no '+'), prepend '+'
+  if (cleaned.startsWith("61") && cleaned.length >= 10) {
+    return `+${cleaned}`;
+  }
+
+  // Fallback: assume Australia (+61)
+  return `+61${cleaned}`;
+}
+
 export async function POST(req: NextRequest) {
   const token = process.env.SQUARE_ACCESS_TOKEN;
   if (!token) {
@@ -131,7 +157,7 @@ export async function POST(req: NextRequest) {
               recipient: {
                 displayName: cust.name,
                 emailAddress: cust.email,
-                phoneNumber: cust.phone,
+                phoneNumber: formatE164(cust.phone),
                 address: {
                   addressLine1: cust.address.line1,
                   addressLine2: cust.address.line2 || undefined,
@@ -151,7 +177,7 @@ export async function POST(req: NextRequest) {
               recipient: {
                 displayName: cust.name,
                 emailAddress: cust.email,
-                phoneNumber: cust.phone,
+                phoneNumber: formatE164(cust.phone),
               },
               note: cust.pickupTime ? `Requested pickup: ${cust.pickupTime}` : undefined,
             },
