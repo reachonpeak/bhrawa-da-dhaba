@@ -13,32 +13,47 @@ import { getFirestore, type Firestore } from "firebase-admin/firestore";
  * un-escaped here.
  */
 function getAdminApp(): App | null {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  if (!projectId || !clientEmail || !privateKey) return null;
+  try {
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+    if (!projectId || !clientEmail || !privateKey) return null;
 
-  if (getApps().length) return getApp();
-  return initializeApp({
-    credential: cert({ projectId, clientEmail, privateKey }),
-  });
+    if (getApps().length) return getApp();
+    return initializeApp({
+      credential: cert({ projectId, clientEmail, privateKey }),
+    });
+  } catch (err) {
+    console.error("Firebase admin app initialization failed:", err);
+    return null;
+  }
 }
 
 export function getAdminAuth(): Auth | null {
-  const app = getAdminApp();
-  return app ? getAuth(app) : null;
+  try {
+    const app = getAdminApp();
+    return app ? getAuth(app) : null;
+  } catch (err) {
+    console.error("Firebase auth initialization failed:", err);
+    return null;
+  }
 }
 
 let firestoreSingleton: Firestore | null = null;
 
 export function getAdminFirestore(): Firestore | null {
-  const app = getAdminApp();
-  if (!app) return null;
-  if (firestoreSingleton) return firestoreSingleton;
-  const db = getFirestore(app);
-  // ignoreUndefinedProperties lets us store partial menu items without having
-  // to strip undefined fields (e.g. optional description/image/tags).
-  db.settings({ ignoreUndefinedProperties: true });
-  firestoreSingleton = db;
-  return db;
+  try {
+    const app = getAdminApp();
+    if (!app) return null;
+    if (firestoreSingleton) return firestoreSingleton;
+    const db = getFirestore(app);
+    // ignoreUndefinedProperties lets us store partial menu items without having
+    // to strip undefined fields (e.g. optional description/image/tags).
+    db.settings({ ignoreUndefinedProperties: true });
+    firestoreSingleton = db;
+    return db;
+  } catch (err) {
+    console.error("Firebase firestore initialization failed:", err);
+    return null;
+  }
 }
